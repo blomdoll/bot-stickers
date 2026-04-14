@@ -34,32 +34,36 @@ client.on('ready', () => {
 
 client.on('message', async (msg) => {
     const command = msg.body.toLowerCase();
-    if (msg.hasMedia && (command === 'sticker' || command === '!sticker')) {
+    
+    // Solo aceptamos imágenes (no GIFs, no Videos) para evitar que el servidor explote
+    if (msg.hasMedia && msg.type === 'image' && (command === 'sticker' || command === '!sticker')) {
         const userId = msg.from;
         let stats = userStats.get(userId) || { ultimoUso: 0, total: 0 };
         const ahora = Date.now();
 
         if (ahora - stats.ultimoUso < TIEMPO_ESPERA) {
-            return msg.reply("⏳ Espera un momento antes de pedir otro.");
-        }
-        if (stats.total >= LIMITE_DIARIO) {
-            return msg.reply("🚫 Límite diario alcanzado.");
+            return msg.reply("⏳ Espera un momento...");
         }
 
         try {
             const media = await msg.downloadMedia();
-            stats.ultimoUso = ahora;
-            stats.total += 1;
-            userStats.set(userId, stats);
-
+            // ... resto del código de envío ...
             await client.sendMessage(msg.from, media, {
                 sendMediaAsSticker: true,
                 stickerName: "Mi Bot",
                 stickerAuthor: "Sage"
             });
+            
+            stats.ultimoUso = ahora;
+            stats.total += 1;
+            userStats.set(userId, stats);
+
         } catch (e) {
-            console.log(e);
+            console.log("Error procesando imagen:", e);
         }
+    } else if (msg.hasMedia && msg.type !== 'image' && (command === 'sticker')) {
+        // Si el usuario envía un GIF o Video, le avisamos que no se puede
+        msg.reply("⚠️ Lo siento, por ahora solo puedo convertir fotos a stickers para mantener el servidor estable.");
     }
 });
 
